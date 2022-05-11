@@ -60,8 +60,8 @@ class EventForm(discord.ui.Modal, title="Creating an event"):
         with open("events.json", "r") as f:
             events = json.load(f)
 
-        if not interaction.guild.id in events.keys():
-            events[interaction.guild.id] = []
+        if not str(interaction.guild.id) in events.keys():
+            events[str(interaction.guild.id)] = []
         eventDict = {
             "id": event.id,
             "name": self.name.value,
@@ -83,7 +83,7 @@ class EventForm(discord.ui.Modal, title="Creating an event"):
             "interestPMMessage": "",
             "pmed": False,
         }
-        events[interaction.guild.id].append(eventDict)
+        events[str(interaction.guild.id)].append(eventDict)
         with open("events.json", "w") as f:
             json.dump(events, f)
 
@@ -249,6 +249,7 @@ class EventManager(commands.Cog):
     async def check_events(self):
         print("Checking events...")
         self._updateEvents()
+        self.events
 
     @check_events.before_loop
     async def before_check_events(self):
