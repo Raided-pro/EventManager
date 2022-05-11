@@ -1,2 +1,2 @@
-# RaidedLAOBot
-Lost Ark Online submodule for RaidedBot
+# EventManager
+Event manager submodule for RaidedBot
