@@ -16,10 +16,15 @@ class EventsView(discord.ui.View):
         self, interaction: discord.Interaction, button: discord.ui.Button
     ):
         if self.eventID is not None:
-            msg = interaction.guild.get_scheduled_event(self.eventID).url
+            event = interaction.guild.get_scheduled_event(self.eventID)
+            msg = event.url
+            embed = EventDescription(event.description).create_embed()
         else:
             msg = "No event selected!"
-        await interaction.response.edit_message(content=msg, view=None)
+            embed = None
+        await interaction.response.edit_message(
+            content=msg, embed=embed, view=None
+        )
         self.stop()
 
 
@@ -38,6 +43,7 @@ class EventsDropdown(discord.ui.Select):
         eventID = int(self.values[0])
         self.view.eventID = eventID
         event = interaction.guild.get_scheduled_event(eventID)
+        desc = EventDescription(event.description)
         self.placeholder = event.name
 
         self.view.add_item(RepeatDropdown(eventID))
@@ -45,8 +51,9 @@ class EventsDropdown(discord.ui.Select):
         self.view.add_item(MentionButton(eventID))
 
         self.disabled = True
+
         await interaction.response.edit_message(
-            content=event.url, view=self.view
+            content=event.url, embed=desc.create_embed(), view=self.view
         )
 
 
@@ -68,9 +75,12 @@ class RepeatDropdown(discord.ui.Select):
         event = interaction.guild.get_scheduled_event(self.eventID)
         desc = EventDescription(event.description)
         await event.edit(
-            description=desc.set_repeat(self.values[0]), channel=event.channel
+            description=desc.set_repeat(self.values[0]),
+            channel=event.channel,
         )
-        await interaction.response.edit_message(view=self.view)
+        await interaction.response.edit_message(
+            embed=desc.create_embed(), view=self.view
+        )
 
 
 class MentionDropdown(discord.ui.MentionableSelect):
@@ -85,6 +95,7 @@ class MentionDropdown(discord.ui.MentionableSelect):
     async def callback(self, interaction: discord.Interaction):
         # Get event info
         event = interaction.guild.get_scheduled_event(self.eventID)
+        desc = EventDescription(event.description)
         ids = []
         for ping in self.values:
             if isinstance(ping, discord.Role):
@@ -97,14 +108,15 @@ class MentionDropdown(discord.ui.MentionableSelect):
             description=desc.set_mentions(ids, interaction.channel_id),
             channel=event.channel,
         )
-        await interaction.response.edit_message(view=self.view)
+        await interaction.response.edit_message(
+            embed=desc.create_embed(), view=self.view
+        )
 
 
 class MentionButton(discord.ui.Button):
     def __init__(self, eventID):
         super().__init__(
-            label="Remove pings",
-            style=discord.ButtonStyle.secondary,
+            label="Remove pings", style=discord.ButtonStyle.secondary, row=4
         )
         self.eventID = eventID
 
@@ -116,7 +128,9 @@ class MentionButton(discord.ui.Button):
             description=desc.set_mentions([], interaction.channel_id),
             channel=event.channel,
         )
-        await interaction.response.edit_message(view=self.view)
+        await interaction.response.edit_message(
+            view=self.view, embed=desc.create_embed()
+        )
 
 
 class EventDescription:
@@ -164,6 +178,33 @@ class EventDescription:
             self.params["channel"] = channel
 
         return str(self)
+
+    def create_embed(self):
+        # Create embed
+        embed = discord.Embed(title="Raided Event Options", type="rich")
+
+        repeat = self.params["repeat"]
+        repeat = repeat if repeat is not None else "Never"
+        embed.add_field(name="Repeat", value=repeat.capitalize(), inline=False)
+
+        mentions = self.params["mentions"]
+        if mentions is not None:
+            mentions = mentions.split(",")
+            mentions = [f"<@{mention}>" for mention in mentions]
+            mentions = "".join(mentions)
+        else:
+            mentions = "None"
+        embed.add_field(name="Ping", value=mentions, inline=False)
+
+        channel = self.params["channel"]
+        channel = f"<#{channel}>" if channel is not None else "None"
+        embed.add_field(name="Channel", value=channel, inline=False)
+
+        embed.set_footer(
+            text="Change the ping channel by setting pings in another channel."
+        )
+
+        return embed
 
     def __str__(self) -> str:
         description = self.description
