@@ -186,7 +186,6 @@ class EventManager(commands.Cog):
     @app_commands.command(name="edit_events", description="Edit an event.")
     @app_commands.checks.has_permissions(manage_events=True)
     async def editevent(self, interaction: discord.Interaction):
-        # TODO: Look into cleaner method for perms check
         events = interaction.guild.scheduled_events
 
         if len(events) == 0:
@@ -299,4 +298,6 @@ class EventManager(commands.Cog):
                 "You don't have permissions to use this command.",
                 ephemeral=True,
             )
-        await interaction.response.send_message("Unknown error!", ephemeral=True)
+        await interaction.response.send_message(
+            "Unknown error!", ephemeral=True
+        )
