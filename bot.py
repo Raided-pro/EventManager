@@ -3,6 +3,7 @@ from discord import app_commands
 from discord.ext import commands, tasks
 import os
 import json
+import datetime
 
 
 class EventsView(discord.ui.View):
@@ -42,9 +43,6 @@ class EventsDropdown(discord.ui.Select):
         self.view.add_item(RepeatDropdown(eventID))
         self.view.add_item(MentionDropdown(eventID))
         self.view.add_item(MentionButton(eventID))
-        # self.view.add_item(self.parentView.mentionUsers)
-        # self.parentView.add_item(self.parentView.done)
-        # self.view.add_item(discord.ui.MentionableSelect())
 
         self.disabled = True
         await interaction.response.edit_message(
@@ -69,8 +67,9 @@ class RepeatDropdown(discord.ui.Select):
         # Get event info
         event = interaction.guild.get_scheduled_event(self.eventID)
         desc = EventDescription(event.description)
-        desc.set_repeat(self.values[0])
-        await event.edit(description=str(desc), channel=event.channel)
+        await event.edit(
+            description=desc.set_repeat(self.values[0]), channel=event.channel
+        )
         await interaction.response.edit_message(view=self.view)
 
 
@@ -94,8 +93,10 @@ class MentionDropdown(discord.ui.MentionableSelect):
                 ids.append(str(ping.id))
 
         desc = EventDescription(event.description)
-        desc.set_mentions(ids, interaction.channel_id)
-        await event.edit(description=str(desc), channel=event.channel)
+        await event.edit(
+            description=desc.set_mentions(ids, interaction.channel_id),
+            channel=event.channel,
+        )
         await interaction.response.edit_message(view=self.view)
 
 
@@ -111,8 +112,10 @@ class MentionButton(discord.ui.Button):
         # Get event info
         event = interaction.guild.get_scheduled_event(self.eventID)
         desc = EventDescription(event.description)
-        desc.set_mentions([], interaction.channel_id)
-        await event.edit(description=str(desc), channel=event.channel)
+        await event.edit(
+            description=desc.set_mentions([], interaction.channel_id),
+            channel=event.channel,
+        )
         await interaction.response.edit_message(view=self.view)
 
 
@@ -138,10 +141,10 @@ class EventDescription:
             for param in params:
                 if param.startswith("#repeat="):
                     self.params["repeat"] = param.split("=")[1]
-                elif param.startswith("#pingUsers="):
-                    self.params["mentions"] = param.split("=")[1].split(",")
+                elif param.startswith("#mentions="):
+                    self.params["mentions"] = param.split("=")[1]
                 elif param.startswith("#channel="):
-                    self.params["channel"] = param.split("=")[1]
+                    self.params["channel"] = int(param.split("=")[1])
 
     def set_repeat(self, repeat: str):
         if repeat not in ["never", "daily", "weekly", "monthly"]:
@@ -206,15 +209,78 @@ class EventManager(commands.Cog):
             view=eventsView, ephemeral=True
         )
 
-    def _updateEvents(self):
-        with open("events.json", "r") as f:
-            self.events = json.load(f)
-
     @tasks.loop(minutes=1)
     async def check_events(self):
         print("Checking events...")
-        self._updateEvents()
-        self.events
+        for guild in self.bot.guilds:
+            # Check events of a guild
+            for event in guild.scheduled_events:
+                # Check if they're managed by raided
+                if (
+                    event.description is not None
+                    and "#!raided" in event.description
+                ):
+                    desc = EventDescription(event.description)
+                    if desc.params["repeat"] is not None:
+                        # Check if event is about to start
+                        if event.start_time - datetime.timedelta(
+                            minutes=5
+                        ) < datetime.datetime.now(datetime.timezone.utc):
+                            # Calculate new start time based on repeat
+                            if desc.params["repeat"] == "daily":
+                                newStart = (
+                                    event.start_time
+                                    + datetime.timedelta(days=1)
+                                )
+                            elif desc.params["repeat"] == "weekly":
+                                newStart = (
+                                    event.start_time
+                                    + datetime.timedelta(weeks=1)
+                                )
+                            elif desc.params["repeat"] == "monthly":
+                                newStart = (
+                                    event.start_time
+                                    + datetime.timedelta(months=1)
+                                )
+                            # Schedule event
+                            await guild.create_scheduled_event(
+                                name=event.name,
+                                description=str(desc),
+                                channel=event.channel,
+                                start_time=newStart,
+                                end_time=newStart
+                                + datetime.timedelta(hours=1),
+                            )
+
+                            # Remove repeat from old event
+                            await event.edit(
+                                description=desc.set_repeat("never"),
+                                channel=event.channel,
+                            )
+
+                    # Check if event should start
+                    if (
+                        event.status is discord.EventStatus.scheduled and
+                        event.start_time
+                        < datetime.datetime.now(datetime.timezone.utc)
+                    ):
+                        # Get mentions
+                        mentions = []
+                        if desc.params["mentions"] is not None:
+                            mentions = desc.params["mentions"].split(",")
+                            mentions = [
+                                f"<@{mention}>" for mention in mentions
+                            ]
+                            # Get channel
+                            channel = guild.get_channel(desc.params["channel"])
+
+                            # Send message
+                            await channel.send(
+                                f"{''.join(mentions)} {event.name} is starting!"
+                            )
+
+                        # Start event
+                        await event.start()
 
     @check_events.before_loop
     async def before_check_events(self):
