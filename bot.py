@@ -181,14 +181,6 @@ class EventManager(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 
-        # Check if events.json exists
-        if not os.path.exists("events.json"):
-            with open("events.json", "w") as f:
-                f.write("{}")
-        else:
-            with open("events.json", "r") as f:
-                self.events = json.load(f)
-
         self.check_events.start()
 
     @app_commands.command(name="edit_events", description="Edit an event.")
