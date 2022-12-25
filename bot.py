@@ -192,6 +192,7 @@ class EventManager(commands.Cog):
         self.check_events.start()
 
     @app_commands.command(name="edit_events", description="Edit an event.")
+    @app_commands.checks.has_permissions(manage_events=True)
     async def editevent(self, interaction: discord.Interaction):
         events = interaction.guild.scheduled_events
         events = {event.id: event.name for event in events}
@@ -260,8 +261,8 @@ class EventManager(commands.Cog):
 
                     # Check if event should start
                     if (
-                        event.status is discord.EventStatus.scheduled and
-                        event.start_time
+                        event.status is discord.EventStatus.scheduled
+                        and event.start_time
                         < datetime.datetime.now(datetime.timezone.utc)
                     ):
                         # Get mentions
