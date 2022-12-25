@@ -180,14 +180,23 @@ class EventDescription:
 class EventManager(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
-
+        self.tree = bot.tree
         self.check_events.start()
 
     @app_commands.command(name="edit_events", description="Edit an event.")
     @app_commands.checks.has_permissions(manage_events=True)
     async def editevent(self, interaction: discord.Interaction):
+        # TODO: Look into cleaner method for perms check
         events = interaction.guild.scheduled_events
-        events = {event.id: event.name for event in events}
+
+        if len(events) == 0:
+            await interaction.response.send_message(
+                "There are no events to edit, make an event using Discord.",
+                ephemeral=True,
+            )
+            return
+        else:
+            events = {event.id: event.name for event in events}
 
         eventsView = EventsView()
         # Channel picker
@@ -279,3 +288,15 @@ class EventManager(commands.Cog):
     async def before_check_events(self):
         print("Waiting for bot to be ready to start events monitoring.")
         await self.bot.wait_until_ready()
+
+    async def cog_app_command_error(
+        self,
+        interaction: discord.Interaction,
+        error: app_commands.AppCommandError,
+    ) -> None:
+        if isinstance(error, app_commands.errors.MissingPermissions):
+            await interaction.response.send_message(
+                "You don't have permissions to use this command.",
+                ephemeral=True,
+            )
+        await interaction.response.send_message("Unknown error!", ephemeral=True)
