@@ -234,7 +234,7 @@ class EventManager(commands.Cog):
             await ctx.send("Failed to sync commands.")
 
     @app_commands.command(name="edit_events", description="Edit an event.")
-    @app_commands.checks.has_permissions(manage_events=True)
+    @app_commands.default_permissions(manage_events=True)
     async def editevent(self, interaction: discord.Interaction):
         events = interaction.guild.scheduled_events
 
