@@ -224,14 +224,8 @@ class EventManager(commands.Cog):
         self.tree = bot.tree
         self.check_events.start()
 
-    @commands.command(name="enable_events")
-    @commands.guild_only()
-    async def enable_events(self, ctx):
-        try:
-            commands = await ctx.bot.tree.sync()
-            await ctx.send(f"Synced {len(commands)} commands.")
-        except discord.HTTPException:
-            await ctx.send("Failed to sync commands.")
+    def cog_unload(self):
+        self.check_events.cancel()
 
     @app_commands.command(name="edit_events", description="Edit an event.")
     @app_commands.default_permissions(manage_events=True)
@@ -351,3 +345,16 @@ class EventManager(commands.Cog):
         await interaction.response.send_message(
             "Unknown error!", ephemeral=True
         )
+
+
+async def setup(bot):
+    await bot.add_cog(EventManager(bot))
+
+    # Remove commands from global
+    cog = bot.get_cog("EventManager")
+    for command in cog.walk_app_commands():
+        bot.tree.remove_command(command.name)
+
+
+async def teardown(bot):
+    await bot.remove_cog("EventManager")
