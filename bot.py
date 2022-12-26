@@ -350,6 +350,11 @@ class EventManager(commands.Cog):
 async def setup(bot):
     await bot.add_cog(EventManager(bot))
 
+    # Remove commands from global
+    cog = bot.get_cog("EventManager")
+    for command in cog.walk_app_commands():
+        bot.tree.remove_command(command.name)
+
 
 async def teardown(bot):
     await bot.remove_cog("EventManager")
