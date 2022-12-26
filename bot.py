@@ -258,6 +258,10 @@ class EventManager(commands.Cog):
     async def check_events(self):
         print("Checking events...")
         for guild in self.bot.guilds:
+            # Only check further if the guild has events module loaded
+            if not self.bot.tree.get_command("edit_events", guild=guild):
+                continue
+
             # Check events of a guild
             for event in guild.scheduled_events:
                 # Check if they're managed by raided
