@@ -15,6 +15,7 @@ class EventsView(discord.ui.View):
     async def confirm(
         self, interaction: discord.Interaction, button: discord.ui.Button
     ):
+        """Turns off options and leaves the message as is without ui."""
         if self.eventID is not None:
             event = interaction.guild.get_scheduled_event(self.eventID)
             msg = event.url
@@ -29,6 +30,8 @@ class EventsView(discord.ui.View):
 
 
 class EventsDropdown(discord.ui.Select):
+    """Dropdown to select available events from the guild."""
+
     def __init__(self):
         super().__init__(
             placeholder="Choose an event...",
@@ -39,7 +42,8 @@ class EventsDropdown(discord.ui.Select):
         )
 
     async def callback(self, interaction: discord.Interaction):
-        # Get event info
+        """When an event is selected, disable this dropdown and add the rest of the ui."""
+
         eventID = int(self.values[0])
         self.view.eventID = eventID
         event = interaction.guild.get_scheduled_event(eventID)
@@ -58,7 +62,9 @@ class EventsDropdown(discord.ui.Select):
 
 
 class RepeatDropdown(discord.ui.Select):
-    def __init__(self, eventID):
+    """Dropdown to select the repeat interval for the event."""
+
+    def __init__(self, eventID: int):
         super().__init__(
             placeholder="Choose a repeat...",
             options=[
@@ -71,7 +77,8 @@ class RepeatDropdown(discord.ui.Select):
         self.eventID = eventID
 
     async def callback(self, interaction: discord.Interaction):
-        # Get event info
+        """When a repeat is selected, update the event and the message."""
+
         event = interaction.guild.get_scheduled_event(self.eventID)
         desc = EventDescription(event.description)
         await event.edit(
@@ -84,7 +91,12 @@ class RepeatDropdown(discord.ui.Select):
 
 
 class MentionDropdown(discord.ui.MentionableSelect):
-    def __init__(self, eventID):
+    """
+    Dropdown to select users and roles to ping in the channel that this command
+    was invoked for the event
+    """
+
+    def __init__(self, eventID: int):
         super().__init__(
             placeholder="Ping users/roles...",
             min_values=0,
@@ -93,7 +105,7 @@ class MentionDropdown(discord.ui.MentionableSelect):
         self.eventID = eventID
 
     async def callback(self, interaction: discord.Interaction):
-        # Get event info
+        """When a mention is selected, update the event and the message."""
         event = interaction.guild.get_scheduled_event(self.eventID)
         desc = EventDescription(event.description)
         ids = []
@@ -103,6 +115,7 @@ class MentionDropdown(discord.ui.MentionableSelect):
             else:
                 ids.append(str(ping.id))
 
+        # Note the channel to ping is whichever channel this command was called
         desc = EventDescription(event.description)
         await event.edit(
             description=desc.set_mentions(ids, interaction.channel_id),
@@ -114,14 +127,16 @@ class MentionDropdown(discord.ui.MentionableSelect):
 
 
 class MentionButton(discord.ui.Button):
-    def __init__(self, eventID):
+    """Button to remove all pings and the corresponding channel from the event."""
+
+    def __init__(self, eventID: int):
         super().__init__(
             label="Remove pings", style=discord.ButtonStyle.secondary, row=4
         )
         self.eventID = eventID
 
     async def callback(self, interaction: discord.Interaction):
-        # Get event info
+        """When the button is pressed, update the event and the message."""
         event = interaction.guild.get_scheduled_event(self.eventID)
         desc = EventDescription(event.description)
         await event.edit(
@@ -134,7 +149,12 @@ class MentionButton(discord.ui.Button):
 
 
 class EventDescription:
-    def __init__(self, description) -> None:
+    """
+    Class to parse and handle descriptions with event parameters potentially
+    encoded inside.
+    """
+
+    def __init__(self, description: str):
         self.header = "#!raided"
 
         # Check if description has header
@@ -160,7 +180,8 @@ class EventDescription:
                 elif param.startswith("#channel="):
                     self.params["channel"] = int(param.split("=")[1])
 
-    def set_repeat(self, repeat: str):
+    def set_repeat(self, repeat: str) -> str:
+        """Set the repeat parameter and return the new description for convenience"""
         if repeat not in ["never", "daily", "weekly", "monthly"]:
             raise ValueError(
                 "Repeat must be one of 'never', 'daily', 'weekly', 'monthly'"
@@ -169,7 +190,8 @@ class EventDescription:
         self.params["repeat"] = repeat if repeat != "never" else None
         return str(self)
 
-    def set_mentions(self, mentions: list, channel: int):
+    def set_mentions(self, mentions: list, channel: int) -> str:
+        """Set the mentions and channel parameters and return the new description for convenience"""
         if len(mentions) == 0:
             self.params["mentions"] = None
             self.params["channel"] = None
@@ -179,7 +201,8 @@ class EventDescription:
 
         return str(self)
 
-    def create_embed(self):
+    def create_embed(self) -> discord.Embed:
+        """Return an embed with the event parameters as fields"""
         # Create embed
         embed = discord.Embed(title="Raided Event Options", type="rich")
 
@@ -207,6 +230,7 @@ class EventDescription:
         return embed
 
     def __str__(self) -> str:
+        """Return the description with the parameters encoded inside"""
         description = self.description
         params = f"\n\n\n\n\n{self.header}\n"
         for key, value in self.params.items():
@@ -219,17 +243,21 @@ class EventDescription:
 
 
 class EventManager(commands.Cog):
+    """Main cog for the event manager module."""
+
     def __init__(self, bot: commands.Bot):
         self.bot = bot
         self.tree = bot.tree
         self.check_events.start()
 
     def cog_unload(self):
+        # Important to stop event checker if cog is unloaded
         self.check_events.cancel()
 
     @app_commands.command(name="edit_events", description="Edit an event.")
     @app_commands.default_permissions(manage_events=True)
     async def editevent(self, interaction: discord.Interaction):
+        # This event also acts as the command to determine if this module is loaded
         events = interaction.guild.scheduled_events
 
         if len(events) == 0:
@@ -256,6 +284,7 @@ class EventManager(commands.Cog):
 
     @tasks.loop(minutes=1)
     async def check_events(self):
+        """Check events to create repeats, ping, or start."""
         print("Checking events...")
         for guild in self.bot.guilds:
             # Only check further if the guild has events module loaded
@@ -354,7 +383,7 @@ class EventManager(commands.Cog):
 async def setup(bot):
     await bot.add_cog(EventManager(bot))
 
-    # Remove commands from global
+    # Remove commands from global, important for modular bot
     cog = bot.get_cog("EventManager")
     for command in cog.walk_app_commands():
         bot.tree.remove_command(command.name)
