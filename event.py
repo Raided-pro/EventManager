@@ -1,9 +1,8 @@
 import discord
 from discord import app_commands
 from discord.ext import commands, tasks
-import os
-import json
 import datetime
+import asyncio
 
 
 class EventsView(discord.ui.View):
@@ -285,7 +284,9 @@ class EventManager(commands.Cog):
     @tasks.loop(minutes=1)
     async def check_events(self):
         """Check events to create repeats, ping, or start."""
-        print("Checking events...")
+        now = datetime.datetime.utcnow()
+        now = now.strftime("%Y-%m-%d %H:%M:%S")
+        print(f"[{now}] Checking events...")
         for guild in self.bot.guilds:
             # Only check further if the guild has events module loaded
             if not self.bot.tree.get_command("edit_events", guild=guild):
@@ -364,6 +365,14 @@ class EventManager(commands.Cog):
     async def before_check_events(self):
         print("Waiting for bot to be ready to start events monitoring.")
         await self.bot.wait_until_ready()
+
+        # Set the time to start
+        now = datetime.datetime.utcnow()
+        nextMinute = now + datetime.timedelta(minutes=1)
+        nextMinute = nextMinute.replace(second=1, microsecond=0)
+        waitSecs = (nextMinute - now).total_seconds()
+        print(f"Waiting {waitSecs} seconds to start events monitoring.")
+        await asyncio.sleep(waitSecs)
 
     async def cog_app_command_error(
         self,
