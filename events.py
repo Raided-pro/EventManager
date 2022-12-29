@@ -241,7 +241,7 @@ class EventDescription:
         return description
 
 
-class EventManager(commands.Cog):
+class EventManager(commands.GroupCog, group_name="events"):
     """Main cog for the event manager module."""
 
     def __init__(self, bot: commands.Bot):
