@@ -253,7 +253,7 @@ class EventManager(commands.GroupCog, group_name="events"):
         # Important to stop event checker if cog is unloaded
         self.check_events.cancel()
 
-    @app_commands.command(name="edit_events", description="Edit an event.")
+    @app_commands.command(name="edit", description="Edit an event.")
     @app_commands.default_permissions(manage_events=True)
     async def editevent(self, interaction: discord.Interaction):
         # This event also acts as the command to determine if this module is loaded
