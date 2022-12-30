@@ -241,6 +241,7 @@ class EventDescription:
         return description
 
 
+@app_commands.default_permissions(manage_events=True)
 class EventManager(commands.GroupCog, group_name="events"):
     """Main cog for the event manager module."""
 
@@ -254,7 +255,6 @@ class EventManager(commands.GroupCog, group_name="events"):
         self.check_events.cancel()
 
     @app_commands.command(name="edit", description="Edit an event.")
-    @app_commands.default_permissions(manage_events=True)
     async def editevent(self, interaction: discord.Interaction):
         # This event also acts as the command to determine if this module is loaded
         events = interaction.guild.scheduled_events
