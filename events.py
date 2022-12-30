@@ -393,9 +393,7 @@ async def setup(bot):
     await bot.add_cog(EventManager(bot))
 
     # Remove commands from global, important for modular bot
-    cog = bot.get_cog("EventManager")
-    for command in cog.walk_app_commands():
-        bot.tree.remove_command(command.name)
+    bot.tree.remove_command("events")
 
 
 async def teardown(bot):
