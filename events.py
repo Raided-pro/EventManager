@@ -289,7 +289,7 @@ class EventManager(commands.GroupCog, group_name="events"):
         print(f"[{now}] Checking events...")
         for guild in self.bot.guilds:
             # Only check further if the guild has events module loaded
-            if not self.bot.tree.get_command("edit_events", guild=guild):
+            if not self.bot.tree.get_command("edit", guild=guild):
                 continue
 
             # Check events of a guild
