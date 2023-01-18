@@ -291,7 +291,7 @@ class EventManager(commands.GroupCog, group_name="events"):
             commands = await self.bot.tree.fetch_commands(guild=guild)
             commands = [command.name for command in commands]
             # Only check further if the guild has events module loaded
-            if 'events' not in commands:
+            if "events" not in commands:
                 continue
 
             # Check events of a guild
@@ -360,6 +360,15 @@ class EventManager(commands.GroupCog, group_name="events"):
                                 f"{''.join(mentions)} {event.name} is starting!"
                             )
 
+                        # End existing events
+                        for channelEvent in guild.scheduled_events:
+                            if (
+                                channelEvent.status
+                                is discord.EventStatus.active
+                            ):
+                                await channelEvent.end(
+                                    reason="New event starting"
+                                )
                         # Start event
                         await event.start()
 
