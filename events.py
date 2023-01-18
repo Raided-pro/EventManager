@@ -288,8 +288,10 @@ class EventManager(commands.GroupCog, group_name="events"):
         now = now.strftime("%Y-%m-%d %H:%M:%S")
         print(f"[{now}] Checking events...")
         for guild in self.bot.guilds:
+            commands = await self.bot.tree.fetch_commands(guild=guild)
+            commands = [command.name for command in commands]
             # Only check further if the guild has events module loaded
-            if not self.bot.tree.get_command("events", guild=guild):
+            if 'events' not in commands:
                 continue
 
             # Check events of a guild
