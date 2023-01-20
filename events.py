@@ -284,93 +284,98 @@ class EventManager(commands.GroupCog, group_name="events"):
     @tasks.loop(minutes=1)
     async def check_events(self):
         """Check events to create repeats, ping, or start."""
-        now = datetime.datetime.utcnow()
-        now = now.strftime("%Y-%m-%d %H:%M:%S")
-        print(f"[{now}] Checking events...")
-        for guild in self.bot.guilds:
-            commands = await self.bot.tree.fetch_commands(guild=guild)
-            commands = [command.name for command in commands]
-            # Only check further if the guild has events module loaded
-            if "events" not in commands:
-                continue
+        try:
+            now = datetime.datetime.utcnow()
+            now = now.strftime("%Y-%m-%d %H:%M:%S")
+            print(f"[{now}] Checking events...")
+            for guild in self.bot.guilds:
+                commands = await self.bot.tree.fetch_commands(guild=guild)
+                commands = [command.name for command in commands]
+                # Only check further if the guild has events module loaded
+                if "events" not in commands:
+                    continue
 
-            # Check events of a guild
-            for event in guild.scheduled_events:
-                # Check if they're managed by raided
-                if (
-                    event.description is not None
-                    and "#!raided" in event.description
-                ):
-                    desc = EventDescription(event.description)
-                    if desc.params["repeat"] is not None:
-                        # Check if event is about to start
-                        if event.start_time - datetime.timedelta(
-                            minutes=5
-                        ) < datetime.datetime.now(datetime.timezone.utc):
-                            # Calculate new start time based on repeat
-                            if desc.params["repeat"] == "daily":
-                                newStart = (
-                                    event.start_time
-                                    + datetime.timedelta(days=1)
-                                )
-                            elif desc.params["repeat"] == "weekly":
-                                newStart = (
-                                    event.start_time
-                                    + datetime.timedelta(weeks=1)
-                                )
-                            elif desc.params["repeat"] == "monthly":
-                                newStart = (
-                                    event.start_time
-                                    + datetime.timedelta(months=1)
-                                )
-                            # Schedule event
-                            await guild.create_scheduled_event(
-                                name=event.name,
-                                description=str(desc),
-                                channel=event.channel,
-                                start_time=newStart,
-                                end_time=newStart
-                                + datetime.timedelta(hours=1),
-                            )
-
-                            # Remove repeat from old event
-                            await event.edit(
-                                description=desc.set_repeat("never"),
-                                channel=event.channel,
-                            )
-
-                    # Check if event should start
+                # Check events of a guild
+                for event in guild.scheduled_events:
+                    # Check if they're managed by raided
                     if (
-                        event.status is discord.EventStatus.scheduled
-                        and event.start_time
-                        < datetime.datetime.now(datetime.timezone.utc)
+                        event.description is not None
+                        and "#!raided" in event.description
                     ):
-                        # Get mentions
-                        mentions = []
-                        if desc.params["mentions"] is not None:
-                            mentions = desc.params["mentions"].split(",")
-                            mentions = [
-                                f"<@{mention}>" for mention in mentions
-                            ]
-                            # Get channel
-                            channel = guild.get_channel(desc.params["channel"])
-
-                            # Send message
-                            await channel.send(
-                                f"{''.join(mentions)} {event.name} is starting!"
-                            )
-
-                        # End existing events
-                        for channelEvent in guild.scheduled_events:
-                            if (
-                                channelEvent.status
-                                is discord.EventStatus.active
-                            ):
-                                await channelEvent.end(
-                                    reason="New event starting"
+                        desc = EventDescription(event.description)
+                        if desc.params["repeat"] is not None:
+                            # Check if event is about to start
+                            if event.start_time - datetime.timedelta(
+                                minutes=5
+                            ) < datetime.datetime.now(datetime.timezone.utc):
+                                # Calculate new start time based on repeat
+                                if desc.params["repeat"] == "daily":
+                                    newStart = (
+                                        event.start_time
+                                        + datetime.timedelta(days=1)
+                                    )
+                                elif desc.params["repeat"] == "weekly":
+                                    newStart = (
+                                        event.start_time
+                                        + datetime.timedelta(weeks=1)
+                                    )
+                                elif desc.params["repeat"] == "monthly":
+                                    newStart = (
+                                        event.start_time
+                                        + datetime.timedelta(months=1)
+                                    )
+                                # Schedule event
+                                await guild.create_scheduled_event(
+                                    name=event.name,
+                                    description=str(desc),
+                                    channel=event.channel,
+                                    start_time=newStart,
+                                    end_time=newStart
+                                    + datetime.timedelta(hours=1),
                                 )
-                        # Start event
-                        await event.start()
+
+                                # Remove repeat from old event
+                                await event.edit(
+                                    description=desc.set_repeat("never"),
+                                    channel=event.channel,
+                                )
+
+                        # Check if event should start
+                        if (
+                            event.status is discord.EventStatus.scheduled
+                            and event.start_time
+                            < datetime.datetime.now(datetime.timezone.utc)
+                        ):
+                            # Get mentions
+                            mentions = []
+                            if desc.params["mentions"] is not None:
+                                mentions = desc.params["mentions"].split(",")
+                                mentions = [
+                                    f"<@{mention}>" for mention in mentions
+                                ]
+                                # Get channel
+                                channel = guild.get_channel(
+                                    desc.params["channel"]
+                                )
+
+                                # Send message
+                                await channel.send(
+                                    f"{''.join(mentions)} {event.name} is starting!"
+                                )
+
+                            # End existing events
+                            for channelEvent in guild.scheduled_events:
+                                if (
+                                    channelEvent.status
+                                    is discord.EventStatus.active
+                                ):
+                                    await channelEvent.end(
+                                        reason="New event starting"
+                                    )
+                            # Start event
+                            await event.start()
+        except Exception as e:
+            print(e)
 
     @check_events.before_loop
     async def before_check_events(self):
