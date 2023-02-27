@@ -266,7 +266,7 @@ class EventManager(commands.GroupCog, group_name="events"):
             )
             return
         else:
-            events = {event.id: event.name for event in events}
+            events = {event.id: event.name for event in events if event.status == discord.EventStatus.scheduled}
 
         eventsView = EventsView()
         # Channel picker
